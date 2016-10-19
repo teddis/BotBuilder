@@ -1291,6 +1291,14 @@ export class Message implements IIsMessage {
     static composePrompt(session: Session, prompts: string[][], args?: any[]): string;
 }
 
+export class Keyboard {
+    constructor(session: Session);
+
+    buttons(list: CardAction[]);
+
+    toAttachment(): Keyboard;
+}
+
 /** Builder class to simplify adding actions to a card. */
 export class CardAction implements IIsCardAction {
 
