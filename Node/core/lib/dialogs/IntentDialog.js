@@ -1,9 +1,10 @@
 "use strict";
 var __extends = (this && this.__extends) || function (d, b) {
-    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
-    function __() { this.constructor = d; }
-    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
-};
+        for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+        function __() { this.constructor = d; }
+
+        d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+    };
 var dlg = require('./Dialog');
 var actions = require('./DialogAction');
 var consts = require('../consts');
@@ -44,6 +45,7 @@ var IntentDialog = (function (_super) {
             this.options.processLimit = 4;
         }
     }
+
     IntentDialog.prototype.begin = function (session, args) {
         var _this = this;
         var mode = this.options.recognizeMode;
@@ -70,7 +72,11 @@ var IntentDialog = (function (_super) {
         var _this = this;
         if (!recognizeResult) {
             var locale = session.preferredLocale();
-            this.recognize({ message: session.message, locale: locale, dialogData: session.dialogData, activeDialog: true }, function (err, result) {
+            this.recognize({
+                message: session.message, locale: locale, dialogData: session.dialogData,
+                activeDialog: true, conversationData: session.conversationData,
+                privateConversationData: session.privateConversationData
+            }, function (err, result) {
                 if (!err) {
                     _this.invokeIntent(session, result);
                 }
@@ -111,7 +117,8 @@ var IntentDialog = (function (_super) {
                 cb(err, null);
             }
         }
-        var result = { score: 0.0, intent: null };
+
+        var result = {score: 0.0, intent: null};
         if (context.message) {
             if (this.expressions) {
                 for (var i = 0; i < this.expressions.length; i++) {
@@ -204,7 +211,7 @@ var IntentDialog = (function (_super) {
     };
     IntentDialog.prototype.recognizeInParallel = function (context, done) {
         var _this = this;
-        var result = { score: 0.0, intent: null };
+        var result = {score: 0.0, intent: null};
         async.eachLimit(this.options.recognizers, this.options.processLimit, function (recognizer, cb) {
             try {
                 recognizer.recognize(context, function (err, r) {
@@ -230,7 +237,7 @@ var IntentDialog = (function (_super) {
     IntentDialog.prototype.recognizeInSeries = function (context, done) {
         var _this = this;
         var i = 0;
-        var result = { score: 0.0, intent: null };
+        var result = {score: 0.0, intent: null};
         async.whilst(function () {
             return (i < _this.options.recognizers.length && result.score < 1.0);
         }, function (cb) {

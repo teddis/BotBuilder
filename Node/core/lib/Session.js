@@ -465,7 +465,9 @@ var Session = (function (_super) {
         if (cur && this.message.text.indexOf('action?') !== 0) {
             var dialog = this.findDialog(cur.id);
             var locale = this.preferredLocale();
-            dialog.recognize({ message: this.message, locale: locale, dialogData: cur.state, activeDialog: true }, done);
+            dialog.recognize({ message: this.message, locale: locale,
+                dialogData: cur.state, activeDialog: true, conversationData: this.conversationData,
+                privateConversationData: this.privateConversationData }, done);
         }
         else {
             done(null, { score: 0.0 });
