@@ -1,15 +1,15 @@
-﻿// 
+﻿//
 // Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license.
-// 
+//
 // Microsoft Bot Framework: http://botframework.com
-// 
+//
 // Bot Builder SDK Github:
 // https://github.com/Microsoft/BotBuilder
-// 
+//
 // Copyright (c) Microsoft Corporation
 // All rights reserved.
-// 
+//
 // MIT License:
 // Permission is hereby granted, free of charge, to any person obtaining
 // a copy of this software and associated documentation files (the
@@ -18,10 +18,10 @@
 // distribute, sublicense, and/or sell copies of the Software, and to
 // permit persons to whom the Software is furnished to do so, subject to
 // the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be
 // included in all copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED ""AS IS"", WITHOUT WARRANTY OF ANY KIND,
 // EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
 // MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
@@ -75,7 +75,7 @@ export class Session extends events.EventEmitter implements ISession {
         super();
         this.library = options.library;
         this.localizer = options.localizer;
-        
+
         if (typeof this.options.autoBatchDelay !== 'number') {
             this.options.autoBatchDelay = 250;  // 250ms delay
         }
@@ -167,7 +167,7 @@ export class Session extends events.EventEmitter implements ISession {
             } else if (this.localizer) {
                 this._locale = this.localizer.defaultLocale();
             }
-        }        
+        }
         return this._locale;
     }
 
@@ -186,9 +186,9 @@ export class Session extends events.EventEmitter implements ISession {
         }
         return sprintf.sprintf(tmpl, count);
     }
-    
+
     public save(): this {
-        logger.info(this, 'session.save()');            
+        logger.info(this, 'session.save()');
         this.startBatch();
         return this;
     }
@@ -206,7 +206,7 @@ export class Session extends events.EventEmitter implements ISession {
             }
             this.prepareMessage(m);
             this.batch.push(m);
-            logger.info(this, 'session.send()');            
+            logger.info(this, 'session.send()');
         }
         this.startBatch();
         return this;
@@ -217,9 +217,9 @@ export class Session extends events.EventEmitter implements ISession {
         var m = <IMessage>{ type: 'typing' };
         this.prepareMessage(m);
         this.batch.push(m);
-        logger.info(this, 'session.sendTyping()');            
+        logger.info(this, 'session.sendTyping()');
         this.sendBatch();
-        return this;        
+        return this;
     }
 
     public messageSent(): boolean {
@@ -228,13 +228,13 @@ export class Session extends events.EventEmitter implements ISession {
 
     public beginDialog(id: string, args?: any): ISession {
         // Find dialog
-        logger.info(this, 'session.beginDialog(%s)', id);            
+        logger.info(this, 'session.beginDialog(%s)', id);
         var id = this.resolveDialogId(id);
         var dialog = this.findDialog(id);
         if (!dialog) {
             throw new Error('Dialog[' + id + '] not found.');
         }
-        
+
         // Push dialog onto stack and start it
         // - Removed the call to save() here as an optimization. In the case of prompts
         //   we end up saving state twice, once here and again after they save off all of
@@ -250,13 +250,13 @@ export class Session extends events.EventEmitter implements ISession {
 
     public replaceDialog(id: string, args?: any): ISession {
         // Find dialog
-        logger.info(this, 'session.replaceDialog(%s)', id);            
+        logger.info(this, 'session.replaceDialog(%s)', id);
         var id = this.resolveDialogId(id);
         var dialog = this.findDialog(id);
         if (!dialog) {
             throw new Error('Dialog[' + id + '] not found.');
         }
-        
+
         // Update the stack and start dialog
         this.popDialog();
         this.pushDialog({ id: id, state: {} });
@@ -283,9 +283,9 @@ export class Session extends events.EventEmitter implements ISession {
 
         // Clear private conversation data
         this.privateConversationData = {};
-                
+
         // Clear stack and save.
-        logger.info(this, 'session.endConversation()');            
+        logger.info(this, 'session.endConversation()');
         var ss = this.sessionState;
         ss.callstack = [];
         this.sendBatch();
@@ -295,7 +295,7 @@ export class Session extends events.EventEmitter implements ISession {
     public endDialog(message?: string|string[]|IMessage|IIsMessage, ...args: any[]): ISession {
         // Check for result being passed
         if (typeof message === 'object' && (message.hasOwnProperty('response') || message.hasOwnProperty('resumed') || message.hasOwnProperty('error'))) {
-            console.warn('Returning results via Session.endDialog() is deprecated. Use Session.endDialogWithResult() instead.')            
+            console.warn('Returning results via Session.endDialog() is deprecated. Use Session.endDialogWithResult() instead.')
             return this.endDialogWithResult(<any>message);
         }
 
@@ -316,9 +316,9 @@ export class Session extends events.EventEmitter implements ISession {
                 this.prepareMessage(m);
                 this.batch.push(m);
             }
-                    
+
             // Pop dialog off the stack and then resume parent.
-            logger.info(this, 'session.endDialog()');            
+            logger.info(this, 'session.endDialog()');
             var childId = cur.id;
             cur = this.popDialog();
             this.startBatch();
@@ -346,9 +346,9 @@ export class Session extends events.EventEmitter implements ISession {
                 result.resumed = dlg.ResumeReason.completed;
             }
             result.childId = cur.id;
-                    
+
             // Pop dialog off the stack and resume parent dlg.
-            logger.info(this, 'session.endDialogWithResult()');            
+            logger.info(this, 'session.endDialogWithResult()');
             cur = this.popDialog();
             this.startBatch();
             if (cur) {
@@ -370,14 +370,14 @@ export class Session extends events.EventEmitter implements ISession {
         var childId = typeof dialogId === 'number' ? this.sessionState.callstack[<number>dialogId].id : <string>dialogId;
         var cur = this.deleteDialogs(dialogId);
         if (replaceWithId) {
-            logger.info(this, 'session.cancelDialog(%s)', replaceWithId);            
+            logger.info(this, 'session.cancelDialog(%s)', replaceWithId);
             var id = this.resolveDialogId(replaceWithId);
             var dialog = this.findDialog(id);
             this.pushDialog({ id: id, state: {} });
             this.startBatch();
             dialog.begin(this, replaceWithArgs);
         } else {
-            logger.info(this, 'session.cancelDialog()');            
+            logger.info(this, 'session.cancelDialog()');
             this.startBatch();
             if (cur) {
                 var dialog = this.findDialog(cur.id);
@@ -394,7 +394,7 @@ export class Session extends events.EventEmitter implements ISession {
     }
 
     public reset(dialogId?: string, dialogArgs?: any): ISession {
-        logger.info(this, 'session.reset()');            
+        logger.info(this, 'session.reset()');
         this._isReset = true;
         this.sessionState.callstack = [];
         if (!dialogId) {
@@ -410,7 +410,7 @@ export class Session extends events.EventEmitter implements ISession {
     }
 
     public sendBatch(callback?: (err: Error) => void): void {
-        logger.info(this, 'session.sendBatch() sending %d messages', this.batch.length);            
+        logger.info(this, 'session.sendBatch() sending %d messages', this.batch.length);
         if (this.sendingBatch) {
             return;
         }
@@ -453,12 +453,12 @@ export class Session extends events.EventEmitter implements ISession {
                 switch ((<any>err).code || '') {
                     case consts.Errors.EBADMSG:
                     case consts.Errors.EMSGSIZE:
-                        // Something wrong with state so reset everything 
+                        // Something wrong with state so reset everything
                         this.userData = {};
                         this.batch = [];
                         this.endConversation(this.options.dialogErrorMessage || 'Oops. Something went wrong and we need to start over.');
                         break;
-                } 
+                }
                 if (callback) {
                     callback(err);
                 }
@@ -488,7 +488,7 @@ export class Session extends events.EventEmitter implements ISession {
         msg.Message.prototype.text.apply(message, args);
         return message.toMessage();
     }
-    
+
     private prepareMessage(msg: IMessage): void {
         if (!msg.type) {
             msg.type = 'message';
@@ -511,12 +511,12 @@ export class Session extends events.EventEmitter implements ISession {
                 var dialog = _that.findDialog(cur.id);
                 _that.dialogData = cur.state;
                 dialog.replyReceived(_that, recognizeResult);
-            }    
+            }
         }
 
         // Validate callstack
         if (this.validateCallstack()) {
-            // Check current dialogs confidence that it understands utterance 
+            // Check current dialogs confidence that it understands utterance
             this.recognizeCurDialog((err, dialogResult) => {
                 if (err) {
                     this.error(err);
@@ -542,7 +542,7 @@ export class Session extends events.EventEmitter implements ISession {
                 } else {
                     routeToDialog(dialogResult);
                 }
-            });      
+            });
         } else {
             logger.warn(this, 'Callstack is invalid, resetting session.');
             this.reset(this.options.dialogId, this.options.dialogArgs);
@@ -572,7 +572,7 @@ export class Session extends events.EventEmitter implements ISession {
                 var cur = ss.callstack[index];
                 var dialog = this.findDialog(cur.id);
                 dialog.recognizeAction(this.message, (err, r) => {
-                    if (!err && r && r.score > result.score) {
+                    if (!err && r && r._score > result.score) {
                         result = r;
                         result.dialogId = cur.id;
                         result.dialogIndex = index;
@@ -586,7 +586,7 @@ export class Session extends events.EventEmitter implements ISession {
             if (!err) {
                 if (result.score < 1.0 && this.options.actions) {
                     this.options.actions.recognizeAction(this.message, (err, r) => {
-                        if (!err && r && r.score > result.score) {
+                        if (!err && r && r._score > result.score) {
                             result = r;
                         }
                         done(err, result);
@@ -599,7 +599,7 @@ export class Session extends events.EventEmitter implements ISession {
             }
         });
     }
- 
+
     private vgettext(messageid: string, args?: any[]): string {
         var tmpl: string;
         if (this.localizer && this.message) {
@@ -691,7 +691,7 @@ export class Session extends events.EventEmitter implements ISession {
     //-----------------------------------------------------
     // DEPRECATED METHODS
     //-----------------------------------------------------
-    
+
     public getMessageReceived(): any {
         console.warn("Session.getMessageReceived() is deprecated. Use Session.message.sourceEvent instead.");
         return this.message.sourceEvent;

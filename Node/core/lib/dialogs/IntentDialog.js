@@ -106,7 +106,7 @@ var IntentDialog = (function (_super) {
     IntentDialog.prototype.recognize = function (context, cb) {
         function done(err, r) {
             if (!err) {
-                if (r.score > result.score) {
+                if (r._score > result.score) {
                     cb(null, r);
                 }
                 else {

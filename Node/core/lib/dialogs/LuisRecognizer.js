@@ -22,7 +22,7 @@ var LuisRecognizer = (function () {
                         var top;
                         intents.forEach(function (intent) {
                             if (top) {
-                                if (intent.score > top.score) {
+                                if (intent.score > top._score) {
                                     top = intent;
                                 }
                             }
@@ -31,7 +31,7 @@ var LuisRecognizer = (function () {
                             }
                         });
                         if (top) {
-                            result.score = top.score;
+                            result.score = top._score;
                             result.intent = top.intent;
                             switch (top.intent.toLowerCase()) {
                                 case 'builtin.intent.none':

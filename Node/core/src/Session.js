@@ -1,14 +1,52 @@
+//
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license.
+//
+// Microsoft Bot Framework: http://botframework.com
+//
+// Bot Builder SDK Github:
+// https://github.com/Microsoft/BotBuilder
+//
+// Copyright (c) Microsoft Corporation
+// All rights reserved.
+//
+// MIT License:
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+//
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED ""AS IS"", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
 "use strict";
-const dlg = require('./dialogs/Dialog');
-const consts = require('./consts');
-const sprintf = require('sprintf-js');
-const events = require('events');
-const msg = require('./Message');
-const logger = require('./logger');
-const async = require('async');
-class Session extends events.EventEmitter {
-    constructor(options) {
-        super();
+var __extends = (this && this.__extends) || function (d, b) {
+    for (var p in b) if (b.hasOwnProperty(p)) d[p] = b[p];
+    function __() { this.constructor = d; }
+    d.prototype = b === null ? Object.create(b) : (__.prototype = b.prototype, new __());
+};
+var dlg = require('./dialogs/Dialog');
+var consts = require('./consts');
+var sprintf = require('sprintf-js');
+var events = require('events');
+var msg = require('./Message');
+var logger = require('./logger');
+var async = require('async');
+var Session = (function (_super) {
+    __extends(Session, _super);
+    function Session(options) {
+        _super.call(this);
         this.options = options;
         this.msgSent = false;
         this._isReset = false;
@@ -22,49 +60,54 @@ class Session extends events.EventEmitter {
         this.library = options.library;
         this.localizer = options.localizer;
         if (typeof this.options.autoBatchDelay !== 'number') {
-            this.options.autoBatchDelay = 250;
+            this.options.autoBatchDelay = 250; // 250ms delay
         }
     }
-    dispatch(sessionState, message) {
+    Session.prototype.dispatch = function (sessionState, message) {
+        var _this = this;
         var index = 0;
         var session = this;
         var now = new Date().getTime();
         var middleware = this.options.middleware || [];
-        var next = () => {
+        var next = function () {
             var handler = index < middleware.length ? middleware[index] : null;
             if (handler) {
                 index++;
                 handler(session, next);
             }
             else {
-                this.inMiddleware = false;
-                this.sessionState.lastAccess = now;
-                this.routeMessage();
+                _this.inMiddleware = false;
+                _this.sessionState.lastAccess = now; // Set after middleware runs so you can expire old sessions.
+                _this.routeMessage();
             }
         };
+        // Make sure dialogData is properly initialized
         this.sessionState = sessionState || { callstack: [], lastAccess: now, version: 0.0 };
         var cur = this.curDialog();
         if (cur) {
             this.dialogData = cur.state;
         }
+        // Dispatch message
         this.inMiddleware = true;
         this.message = (message || { text: '' });
         if (!this.message.type) {
             this.message.type = consts.messageType;
         }
+        // Ensure localized prompts are loaded
         var locale = this.preferredLocale();
-        this.localizer.load(locale, (err) => {
+        this.localizer.load(locale, function (err) {
             if (err) {
-                this.error(err);
+                _this.error(err);
             }
             else {
                 next();
             }
         });
         return this;
-    }
-    error(err) {
+    };
+    Session.prototype.error = function (err) {
         logger.info(this, 'session.error()');
+        // End conversation with a message
         if (this.options.dialogErrorMessage) {
             this.endConversation(this.options.dialogErrorMessage);
         }
@@ -72,12 +115,13 @@ class Session extends events.EventEmitter {
             var locale = this.preferredLocale();
             this.endConversation(this.localizer.gettext(locale, 'default_error', consts.Library.system));
         }
+        // Log error
         var m = err.toString();
         err = err instanceof Error ? err : new Error(m);
         this.emit('error', err);
         return this;
-    }
-    preferredLocale(locale, callback) {
+    };
+    Session.prototype.preferredLocale = function (locale, callback) {
         if (locale) {
             this._locale = locale;
             if (this.userData) {
@@ -99,11 +143,15 @@ class Session extends events.EventEmitter {
             }
         }
         return this._locale;
-    }
-    gettext(messageid, ...args) {
+    };
+    Session.prototype.gettext = function (messageid) {
+        var args = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            args[_i - 1] = arguments[_i];
+        }
         return this.vgettext(messageid, args);
-    }
-    ngettext(messageid, messageid_plural, count) {
+    };
+    Session.prototype.ngettext = function (messageid, messageid_plural, count) {
         var tmpl;
         if (this.localizer && this.message) {
             tmpl = this.localizer.ngettext(this.message.textLocale || '', messageid, messageid_plural, count);
@@ -115,13 +163,17 @@ class Session extends events.EventEmitter {
             tmpl = messageid_plural;
         }
         return sprintf.sprintf(tmpl, count);
-    }
-    save() {
+    };
+    Session.prototype.save = function () {
         logger.info(this, 'session.save()');
         this.startBatch();
         return this;
-    }
-    send(message, ...args) {
+    };
+    Session.prototype.send = function (message) {
+        var args = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            args[_i - 1] = arguments[_i];
+        }
         this.msgSent = true;
         if (message) {
             var m;
@@ -140,8 +192,8 @@ class Session extends events.EventEmitter {
         }
         this.startBatch();
         return this;
-    }
-    sendTyping() {
+    };
+    Session.prototype.sendTyping = function () {
         this.msgSent = true;
         var m = { type: 'typing' };
         this.prepareMessage(m);
@@ -149,36 +201,51 @@ class Session extends events.EventEmitter {
         logger.info(this, 'session.sendTyping()');
         this.sendBatch();
         return this;
-    }
-    messageSent() {
+    };
+    Session.prototype.messageSent = function () {
         return this.msgSent;
-    }
-    beginDialog(id, args) {
+    };
+    Session.prototype.beginDialog = function (id, args) {
+        // Find dialog
         logger.info(this, 'session.beginDialog(%s)', id);
         var id = this.resolveDialogId(id);
         var dialog = this.findDialog(id);
         if (!dialog) {
             throw new Error('Dialog[' + id + '] not found.');
         }
+        // Push dialog onto stack and start it
+        // - Removed the call to save() here as an optimization. In the case of prompts
+        //   we end up saving state twice, once here and again after they save off all of
+        //   there params before sending the message.  This chnage does mean a dialog needs
+        //   to either send a message or manually call session.save() when started but given
+        //   most dialogs should always prompt the user is some way that seems reasonable and
+        //   can save a number of intermediate calls to save.
         this.pushDialog({ id: id, state: {} });
         this.startBatch();
         dialog.begin(this, args);
         return this;
-    }
-    replaceDialog(id, args) {
+    };
+    Session.prototype.replaceDialog = function (id, args) {
+        // Find dialog
         logger.info(this, 'session.replaceDialog(%s)', id);
         var id = this.resolveDialogId(id);
         var dialog = this.findDialog(id);
         if (!dialog) {
             throw new Error('Dialog[' + id + '] not found.');
         }
+        // Update the stack and start dialog
         this.popDialog();
         this.pushDialog({ id: id, state: {} });
         this.startBatch();
         dialog.begin(this, args);
         return this;
-    }
-    endConversation(message, ...args) {
+    };
+    Session.prototype.endConversation = function (message) {
+        var args = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            args[_i - 1] = arguments[_i];
+        }
+        // Unpack message
         var m;
         if (message) {
             if (typeof message == 'string' || Array.isArray(message)) {
@@ -194,20 +261,29 @@ class Session extends events.EventEmitter {
             this.prepareMessage(m);
             this.batch.push(m);
         }
+        // Clear private conversation data
         this.privateConversationData = {};
+        // Clear stack and save.
         logger.info(this, 'session.endConversation()');
         var ss = this.sessionState;
         ss.callstack = [];
         this.sendBatch();
         return this;
-    }
-    endDialog(message, ...args) {
+    };
+    Session.prototype.endDialog = function (message) {
+        var args = [];
+        for (var _i = 1; _i < arguments.length; _i++) {
+            args[_i - 1] = arguments[_i];
+        }
+        // Check for result being passed
         if (typeof message === 'object' && (message.hasOwnProperty('response') || message.hasOwnProperty('resumed') || message.hasOwnProperty('error'))) {
             console.warn('Returning results via Session.endDialog() is deprecated. Use Session.endDialogWithResult() instead.');
             return this.endDialogWithResult(message);
         }
+        // Validate callstack
         var cur = this.curDialog();
         if (cur) {
+            // Unpack message
             var m;
             if (message) {
                 if (typeof message == 'string' || Array.isArray(message)) {
@@ -223,6 +299,7 @@ class Session extends events.EventEmitter {
                 this.prepareMessage(m);
                 this.batch.push(m);
             }
+            // Pop dialog off the stack and then resume parent.
             logger.info(this, 'session.endDialog()');
             var childId = cur.id;
             cur = this.popDialog();
@@ -233,20 +310,25 @@ class Session extends events.EventEmitter {
                     dialog.dialogResumed(this, { resumed: dlg.ResumeReason.completed, response: true, childId: childId });
                 }
                 else {
+                    // Bad dialog on the stack so just end it.
+                    // - Because of the stack validation we should never actually get here.
                     this.error(new Error("Can't resume missing parent dialog '" + cur.id + "'."));
                 }
             }
         }
         return this;
-    }
-    endDialogWithResult(result) {
+    };
+    Session.prototype.endDialogWithResult = function (result) {
+        // Validate callstack
         var cur = this.curDialog();
         if (cur) {
+            // Validate result
             result = result || {};
             if (!result.hasOwnProperty('resumed')) {
                 result.resumed = dlg.ResumeReason.completed;
             }
             result.childId = cur.id;
+            // Pop dialog off the stack and resume parent dlg.
             logger.info(this, 'session.endDialogWithResult()');
             cur = this.popDialog();
             this.startBatch();
@@ -256,13 +338,16 @@ class Session extends events.EventEmitter {
                     dialog.dialogResumed(this, result);
                 }
                 else {
+                    // Bad dialog on the stack so just end it.
+                    // - Because of the stack validation we should never actually get here.
                     this.error(new Error("Can't resume missing parent dialog '" + cur.id + "'."));
                 }
             }
         }
         return this;
-    }
-    cancelDialog(dialogId, replaceWithId, replaceWithArgs) {
+    };
+    Session.prototype.cancelDialog = function (dialogId, replaceWithId, replaceWithArgs) {
+        // Delete dialog(s)
         var childId = typeof dialogId === 'number' ? this.sessionState.callstack[dialogId].id : dialogId;
         var cur = this.deleteDialogs(dialogId);
         if (replaceWithId) {
@@ -282,13 +367,15 @@ class Session extends events.EventEmitter {
                     dialog.dialogResumed(this, { resumed: dlg.ResumeReason.canceled, response: null, childId: childId });
                 }
                 else {
+                    // Bad dialog on the stack so just end it.
+                    // - Because of the stack validation we should never actually get here.
                     this.error(new Error("Can't resume missing parent dialog '" + cur.id + "'."));
                 }
             }
         }
         return this;
-    }
-    reset(dialogId, dialogArgs) {
+    };
+    Session.prototype.reset = function (dialogId, dialogArgs) {
         logger.info(this, 'session.reset()');
         this._isReset = true;
         this.sessionState.callstack = [];
@@ -298,11 +385,12 @@ class Session extends events.EventEmitter {
         }
         this.beginDialog(dialogId, dialogArgs);
         return this;
-    }
-    isReset() {
+    };
+    Session.prototype.isReset = function () {
         return this._isReset;
-    }
-    sendBatch(callback) {
+    };
+    Session.prototype.sendBatch = function (callback) {
+        var _this = this;
         logger.info(this, 'session.sendBatch() sending %d messages', this.batch.length);
         if (this.sendingBatch) {
             return;
@@ -320,13 +408,13 @@ class Session extends events.EventEmitter {
         if (cur) {
             cur.state = this.dialogData;
         }
-        this.options.onSave((err) => {
+        this.options.onSave(function (err) {
             if (!err) {
                 if (batch.length) {
-                    this.options.onSend(batch, (err) => {
-                        this.sendingBatch = false;
-                        if (this.batchStarted) {
-                            this.startBatch();
+                    _this.options.onSend(batch, function (err) {
+                        _this.sendingBatch = false;
+                        if (_this.batchStarted) {
+                            _this.startBatch();
                         }
                         if (callback) {
                             callback(err);
@@ -334,9 +422,9 @@ class Session extends events.EventEmitter {
                     });
                 }
                 else {
-                    this.sendingBatch = false;
-                    if (this.batchStarted) {
-                        this.startBatch();
+                    _this.sendingBatch = false;
+                    if (_this.batchStarted) {
+                        _this.startBatch();
                     }
                     if (callback) {
                         callback(err);
@@ -344,13 +432,14 @@ class Session extends events.EventEmitter {
                 }
             }
             else {
-                this.sendingBatch = false;
+                _this.sendingBatch = false;
                 switch (err.code || '') {
                     case consts.Errors.EBADMSG:
                     case consts.Errors.EMSGSIZE:
-                        this.userData = {};
-                        this.batch = [];
-                        this.endConversation(this.options.dialogErrorMessage || 'Oops. Something went wrong and we need to start over.');
+                        // Something wrong with state so reset everything
+                        _this.userData = {};
+                        _this.batch = [];
+                        _this.endConversation(_this.options.dialogErrorMessage || 'Oops. Something went wrong and we need to start over.');
                         break;
                 }
                 if (callback) {
@@ -358,25 +447,29 @@ class Session extends events.EventEmitter {
                 }
             }
         });
-    }
-    startBatch() {
+    };
+    //-----------------------------------------------------
+    // PRIVATE HELPERS
+    //-----------------------------------------------------
+    Session.prototype.startBatch = function () {
+        var _this = this;
         this.batchStarted = true;
         if (!this.sendingBatch) {
             if (this.batchTimer) {
                 clearTimeout(this.batchTimer);
             }
-            this.batchTimer = setTimeout(() => {
-                this.sendBatch();
+            this.batchTimer = setTimeout(function () {
+                _this.sendBatch();
             }, this.options.autoBatchDelay);
         }
-    }
-    createMessage(text, args) {
+    };
+    Session.prototype.createMessage = function (text, args) {
         args.unshift(text);
         var message = new msg.Message(this);
         msg.Message.prototype.text.apply(message, args);
         return message.toMessage();
-    }
-    prepareMessage(msg) {
+    };
+    Session.prototype.prepareMessage = function (msg) {
         if (!msg.type) {
             msg.type = 'message';
         }
@@ -386,8 +479,9 @@ class Session extends events.EventEmitter {
         if (!msg.textLocale && this.message.textLocale) {
             msg.textLocale = this.message.textLocale;
         }
-    }
-    routeMessage() {
+    };
+    Session.prototype.routeMessage = function () {
+        var _this = this;
         var _that = this;
         function routeToDialog(recognizeResult) {
             var cur = _that.curDialog();
@@ -400,23 +494,29 @@ class Session extends events.EventEmitter {
                 dialog.replyReceived(_that, recognizeResult);
             }
         }
+        // Validate callstack
         if (this.validateCallstack()) {
-            this.recognizeCurDialog((err, dialogResult) => {
+            // Check current dialogs confidence that it understands utterance
+            this.recognizeCurDialog(function (err, dialogResult) {
                 if (err) {
-                    this.error(err);
+                    _this.error(err);
                 }
                 else if (dialogResult.score < 1.0) {
-                    this.recognizeCallstackActions((err, actionResult) => {
+                    // Check the confidence of any actions on the callstack.
+                    _this.recognizeCallstackActions(function (err, actionResult) {
                         if (err) {
-                            this.error(err);
+                            _this.error(err);
                         }
                         else if (actionResult.score > dialogResult.score) {
+                            // Route to action
                             if (actionResult.dialogId) {
-                                var dialog = this.findDialog(actionResult.dialogId);
-                                dialog.invokeAction(this, actionResult);
+                                // Action is on the stack
+                                var dialog = _this.findDialog(actionResult.dialogId);
+                                dialog.invokeAction(_this, actionResult);
                             }
                             else {
-                                this.options.actions.invokeAction(this, actionResult);
+                                // Global action
+                                _this.options.actions.invokeAction(_this, actionResult);
                             }
                         }
                         else {
@@ -433,8 +533,8 @@ class Session extends events.EventEmitter {
             logger.warn(this, 'Callstack is invalid, resetting session.');
             this.reset(this.options.dialogId, this.options.dialogArgs);
         }
-    }
-    recognizeCurDialog(done) {
+    };
+    Session.prototype.recognizeCurDialog = function (done) {
         var cur = this.curDialog();
         if (cur && this.message.text.indexOf('action?') !== 0) {
             var dialog = this.findDialog(cur.id);
@@ -444,20 +544,21 @@ class Session extends events.EventEmitter {
         else {
             done(null, { score: 0.0 });
         }
-    }
-    recognizeCallstackActions(done) {
+    };
+    Session.prototype.recognizeCallstackActions = function (done) {
+        var _this = this;
         var ss = this.sessionState;
         var i = ss.callstack.length - 1;
         var result = { score: 0.0 };
-        async.whilst(() => {
+        async.whilst(function () {
             return (i >= 0 && result.score < 1.0);
-        }, (cb) => {
+        }, function (cb) {
             try {
                 var index = i--;
                 var cur = ss.callstack[index];
-                var dialog = this.findDialog(cur.id);
-                dialog.recognizeAction(this.message, (err, r) => {
-                    if (!err && r && r.score > result.score) {
+                var dialog = _this.findDialog(cur.id);
+                dialog.recognizeAction(_this.message, function (err, r) {
+                    if (!err && r && r._score > result.score) {
                         result = r;
                         result.dialogId = cur.id;
                         result.dialogIndex = index;
@@ -468,11 +569,11 @@ class Session extends events.EventEmitter {
             catch (e) {
                 cb(e);
             }
-        }, (err) => {
+        }, function (err) {
             if (!err) {
-                if (result.score < 1.0 && this.options.actions) {
-                    this.options.actions.recognizeAction(this.message, (err, r) => {
-                        if (!err && r && r.score > result.score) {
+                if (result.score < 1.0 && _this.options.actions) {
+                    _this.options.actions.recognizeAction(_this.message, function (err, r) {
+                        if (!err && r && r._score > result.score) {
                             result = r;
                         }
                         done(err, result);
@@ -486,8 +587,8 @@ class Session extends events.EventEmitter {
                 done(err instanceof Error ? err : new Error(err.toString()), null);
             }
         });
-    }
-    vgettext(messageid, args) {
+    };
+    Session.prototype.vgettext = function (messageid, args) {
         var tmpl;
         if (this.localizer && this.message) {
             tmpl = this.localizer.gettext(this.preferredLocale() || this.message.textLocale || '', messageid);
@@ -496,8 +597,9 @@ class Session extends events.EventEmitter {
             tmpl = messageid;
         }
         return args && args.length > 0 ? sprintf.vsprintf(tmpl, args) : tmpl;
-    }
-    validateCallstack() {
+    };
+    /** Checks for any unsupported dialogs on the callstack. */
+    Session.prototype.validateCallstack = function () {
         var ss = this.sessionState;
         for (var i = 0; i < ss.callstack.length; i++) {
             var id = ss.callstack[i].id;
@@ -506,20 +608,20 @@ class Session extends events.EventEmitter {
             }
         }
         return true;
-    }
-    resolveDialogId(id) {
+    };
+    Session.prototype.resolveDialogId = function (id) {
         if (id.indexOf(':') >= 0) {
             return id;
         }
         var cur = this.curDialog();
         var libName = cur && !this.inMiddleware ? cur.id.split(':')[0] : consts.Library.default;
         return libName + ':' + id;
-    }
-    findDialog(id) {
+    };
+    Session.prototype.findDialog = function (id) {
         var parts = id.split(':');
         return this.library.findDialog(parts[0] || consts.Library.default, parts[1]);
-    }
-    pushDialog(ds) {
+    };
+    Session.prototype.pushDialog = function (ds) {
         var ss = this.sessionState;
         var cur = this.curDialog();
         if (cur) {
@@ -528,8 +630,8 @@ class Session extends events.EventEmitter {
         ss.callstack.push(ds);
         this.dialogData = ds.state || {};
         return ds;
-    }
-    popDialog() {
+    };
+    Session.prototype.popDialog = function () {
         var ss = this.sessionState;
         if (ss.callstack.length > 0) {
             ss.callstack.pop();
@@ -537,8 +639,8 @@ class Session extends events.EventEmitter {
         var cur = this.curDialog();
         this.dialogData = cur ? cur.state : null;
         return cur;
-    }
-    deleteDialogs(dialogId) {
+    };
+    Session.prototype.deleteDialogs = function (dialogId) {
         var ss = this.sessionState;
         var index = -1;
         if (typeof dialogId === 'string') {
@@ -559,19 +661,22 @@ class Session extends events.EventEmitter {
         var cur = this.curDialog();
         this.dialogData = cur ? cur.state : null;
         return cur;
-    }
-    curDialog() {
+    };
+    Session.prototype.curDialog = function () {
         var cur;
         var ss = this.sessionState;
         if (ss.callstack.length > 0) {
             cur = ss.callstack[ss.callstack.length - 1];
         }
         return cur;
-    }
-    getMessageReceived() {
+    };
+    //-----------------------------------------------------
+    // DEPRECATED METHODS
+    //-----------------------------------------------------
+    Session.prototype.getMessageReceived = function () {
         console.warn("Session.getMessageReceived() is deprecated. Use Session.message.sourceEvent instead.");
         return this.message.sourceEvent;
-    }
-}
+    };
+    return Session;
+}(events.EventEmitter));
 exports.Session = Session;
-//# sourceMappingURL=Session.js.map

@@ -142,7 +142,7 @@ var EntityRecognizer = (function () {
         var best;
         var matches = EntityRecognizer.findAllMatches(choices, utterance, threshold);
         matches.forEach(function (value) {
-            if (!best || value.score > best.score) {
+            if (!best || value.score > best._score) {
                 best = value;
             }
         });

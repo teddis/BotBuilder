@@ -1,22 +1,60 @@
+// 
+// Copyright (c) Microsoft. All rights reserved.
+// Licensed under the MIT license.
+// 
+// Microsoft Bot Framework: http://botframework.com
+// 
+// Bot Builder SDK Github:
+// https://github.com/Microsoft/BotBuilder
+// 
+// Copyright (c) Microsoft Corporation
+// All rights reserved.
+// 
+// MIT License:
+// Permission is hereby granted, free of charge, to any person obtaining
+// a copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to
+// permit persons to whom the Software is furnished to do so, subject to
+// the following conditions:
+// 
+// The above copyright notice and this permission notice shall be
+// included in all copies or substantial portions of the Software.
+// 
+// THE SOFTWARE IS PROVIDED ""AS IS"", WITHOUT WARRANTY OF ANY KIND,
+// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+// LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+// OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+// WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+//
 "use strict";
-const fs = require('fs');
-const async = require('async');
-const Promise = require('promise');
-const path = require('path');
-const logger = require('./logger');
-class DefaultLocalizer {
-    constructor(root, defaultLocale) {
+var fs = require('fs');
+var async = require('async');
+var Promise = require('promise');
+var path = require('path');
+var logger = require('./logger');
+var DefaultLocalizer = (function () {
+    function DefaultLocalizer(root, defaultLocale) {
         this.localePaths = [];
         this.locales = {};
         this.defaultLocale(defaultLocale || 'en');
+        // Find all of the searchable 
         var libsSeen = {};
         var _that = this;
         function addPaths(library) {
+            // Protect against circular references.
             if (!libsSeen.hasOwnProperty(library.name)) {
                 libsSeen[library.name] = true;
-                library.forEachLibrary((child) => {
+                // Add paths for child libraries
+                library.forEachLibrary(function (child) {
                     addPaths(child);
                 });
+                // Add libraries '/locale/' folder to list of known paths.
+                // - Order is important here. We want the bots root path to be last so that any
+                //   overrides for the bot will be applied last.
                 var path = library.localePath();
                 if (path) {
                     _that.localePaths.push(path);
@@ -25,16 +63,18 @@ class DefaultLocalizer {
         }
         addPaths(root);
     }
-    defaultLocale(locale) {
+    DefaultLocalizer.prototype.defaultLocale = function (locale) {
         if (locale) {
             this._defaultLocale = locale.toLowerCase();
         }
         else {
             return this._defaultLocale;
         }
-    }
-    load(locale, done) {
+    };
+    DefaultLocalizer.prototype.load = function (locale, done) {
+        var _this = this;
         logger.debug("localizer.load(%s)", locale);
+        // Build list of locales to load
         locale = locale ? locale.toLowerCase() : this._defaultLocale;
         var fbDefault = this.getFallback(this._defaultLocale);
         var fbLocale = this.getFallback(locale);
@@ -51,20 +91,24 @@ class DefaultLocalizer {
         if (locale !== fbLocale) {
             locales.push(locale);
         }
-        async.each(locales, (locale, cb) => {
-            this.loadLocale(locale).done(() => cb(), (err) => cb(err));
-        }, (err) => {
+        // Load locales in parallel
+        async.each(locales, function (locale, cb) {
+            _this.loadLocale(locale).done(function () { return cb(); }, function (err) { return cb(err); });
+        }, function (err) {
             if (done) {
                 done(err);
             }
         });
-    }
-    trygettext(locale, msgid, ns) {
+    };
+    DefaultLocalizer.prototype.trygettext = function (locale, msgid, ns) {
+        // Calculate fallbacks
         locale = locale ? locale.toLowerCase() : this._defaultLocale;
         var fbDefault = this.getFallback(this._defaultLocale);
         var fbLocale = this.getFallback(locale);
+        // Calculate namespaced key
         ns = ns ? ns.toLocaleLowerCase() : null;
         var key = this.createKey(ns, msgid);
+        // Lookup entry
         var text = this.getEntry(locale, key);
         if (!text && fbLocale !== locale) {
             text = this.getEntry(fbLocale, key);
@@ -75,15 +119,16 @@ class DefaultLocalizer {
         if (!text && fbDefault !== this._defaultLocale) {
             text = this.getEntry(fbDefault, key);
         }
+        // Return localized message
         return text ? this.getValue(text) : null;
-    }
-    gettext(locale, msgid, ns) {
+    };
+    DefaultLocalizer.prototype.gettext = function (locale, msgid, ns) {
         return this.trygettext(locale, msgid, ns) || msgid;
-    }
-    ngettext(locale, msgid, msgid_plural, count, ns) {
+    };
+    DefaultLocalizer.prototype.ngettext = function (locale, msgid, msgid_plural, count, ns) {
         return count == 1 ? this.gettext(locale, msgid, ns) : this.gettext(locale, msgid_plural, ns);
-    }
-    getFallback(locale) {
+    };
+    DefaultLocalizer.prototype.getFallback = function (locale) {
         if (locale) {
             var split = locale.indexOf("-");
             if (split != -1) {
@@ -91,15 +136,18 @@ class DefaultLocalizer {
             }
         }
         return this.defaultLocale();
-    }
-    loadLocale(locale) {
+    };
+    DefaultLocalizer.prototype.loadLocale = function (locale) {
+        var _this = this;
+        // Load local on first access
         if (!this.locales.hasOwnProperty(locale)) {
             var entry;
             this.locales[locale] = entry = { loaded: null, entries: {} };
-            entry.loaded = new Promise((resolve, reject) => {
-                async.eachSeries(this.localePaths, (path, cb) => {
-                    this.loadLocalePath(locale, path).done(() => cb(), (err) => cb(err));
-                }, (err) => {
+            entry.loaded = new Promise(function (resolve, reject) {
+                // Load locale in all file paths
+                async.eachSeries(_this.localePaths, function (path, cb) {
+                    _this.loadLocalePath(locale, path).done(function () { return cb(); }, function (err) { return cb(err); });
+                }, function (err) {
                     if (err) {
                         reject(err);
                     }
@@ -110,27 +158,30 @@ class DefaultLocalizer {
             });
         }
         return this.locales[locale].loaded;
-    }
-    loadLocalePath(locale, localePath) {
+    };
+    DefaultLocalizer.prototype.loadLocalePath = function (locale, localePath) {
+        var _this = this;
         var dir = path.join(localePath, locale);
         var entryCount = 0;
-        var p = new Promise((resolve, reject) => {
+        var p = new Promise(function (resolve, reject) {
             var access = Promise.denodeify(fs.access);
             var readdir = Promise.denodeify(fs.readdir);
             var asyncEach = Promise.denodeify(async.each);
             access(dir)
-                .then(() => {
+                .then(function () {
+                // Directory exists
                 return readdir(dir);
             })
-                .then((files) => {
-                return asyncEach(files, (file, cb) => {
+                .then(function (files) {
+                // List of files retreived
+                return asyncEach(files, function (file, cb) {
                     if (file.substring(file.length - 5).toLowerCase() == ".json") {
                         logger.debug("localizer.load(%s) - Loading %s/%s", locale, dir, file);
-                        this.parseFile(locale, dir, file)
-                            .then((count) => {
+                        _this.parseFile(locale, dir, file)
+                            .then(function (count) {
                             entryCount += count;
                             cb();
-                        }, (err) => {
+                        }, function (err) {
                             logger.error("localizer.load(%s) - Error reading %s/%s: %s", locale, dir, file, err.toString());
                             cb();
                         });
@@ -140,10 +191,12 @@ class DefaultLocalizer {
                     }
                 });
             })
-                .then(() => {
+                .then(function () {
+                // Files successfully added
                 resolve(entryCount);
-            }, (err) => {
+            }, function (err) {
                 if (err.code === 'ENOENT') {
+                    // No local directory
                     logger.debug("localizer.load(%s) - Couldn't find directory: %s", locale, dir);
                     resolve(-1);
                 }
@@ -154,23 +207,27 @@ class DefaultLocalizer {
             });
         });
         return p;
-    }
-    parseFile(locale, localeDir, filename) {
+    };
+    DefaultLocalizer.prototype.parseFile = function (locale, localeDir, filename) {
+        var _this = this;
         var table = this.locales[locale];
-        return new Promise((resolve, reject) => {
+        return new Promise(function (resolve, reject) {
             var filePath = path.join(localeDir, filename);
             var readFile = Promise.denodeify(fs.readFile);
             readFile(filePath, 'utf8')
-                .then((data) => {
+                .then(function (data) {
+                // Find namespace 
                 var ns = path.parse(filename).name;
                 if (ns == 'index') {
                     ns = null;
                 }
+                // Add entries to map
                 try {
+                    // Parse locale file and add entries to table
                     var cnt = 0;
                     var entries = JSON.parse(data);
                     for (var key in entries) {
-                        var k = this.createKey(ns, key);
+                        var k = _this.createKey(ns, key);
                         table.entries[k] = entries[key];
                         ++cnt;
                     }
@@ -179,32 +236,32 @@ class DefaultLocalizer {
                 catch (error) {
                     return reject(error);
                 }
-            }, (err) => {
+            }, function (err) {
                 reject(err);
             });
         });
-    }
-    createKey(ns, msgid) {
+    };
+    DefaultLocalizer.prototype.createKey = function (ns, msgid) {
         var escapedMsgId = this.escapeKey(msgid);
         var prepend = "";
         if (ns) {
             prepend = ns + ":";
         }
         return prepend + msgid;
-    }
-    escapeKey(key) {
+    };
+    DefaultLocalizer.prototype.escapeKey = function (key) {
         return key.replace(/:/g, "--").toLowerCase();
-    }
-    getEntry(locale, key) {
+    };
+    DefaultLocalizer.prototype.getEntry = function (locale, key) {
         return this.locales.hasOwnProperty(locale) && this.locales[locale].entries.hasOwnProperty(key) ? this.locales[locale].entries[key] : null;
-    }
-    getValue(text) {
+    };
+    DefaultLocalizer.prototype.getValue = function (text) {
         return typeof text == "string" ? text : this.randomizeValue(text);
-    }
-    randomizeValue(a) {
+    };
+    DefaultLocalizer.prototype.randomizeValue = function (a) {
         var i = Math.floor(Math.random() * a.length);
         return this.getValue(a[i]);
-    }
-}
+    };
+    return DefaultLocalizer;
+}());
 exports.DefaultLocalizer = DefaultLocalizer;
-//# sourceMappingURL=DefaultLocalizer.js.map
